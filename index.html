@@ -2057,7 +2057,7 @@ async function buildDetallePayload(a){
     const r = a.respuestas[q.id] || {};
     const plan = r.plan || {};
 
-    let puntajeObtenido = '';
+    let puntajeObtenido = 0;
     if(r.resultado==='Cumple') puntajeObtenido = q.puntajeMax;
     else if(r.resultado==='No cumple') puntajeObtenido = 0;
 
@@ -2100,16 +2100,21 @@ async function sendToSharePoint(a){
   const resumen = buildResumenPayload(a);
   const detalle = await buildDetallePayload(a);
   const payload = { ...resumen, "Detalle": detalle };
+  const bodyStr = JSON.stringify(payload);
   try{
     const resp = await fetch(POWER_AUTOMATE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: bodyStr
     });
     if(!resp.ok){
-      console.error('Power Automate respondió con error', resp.status);
-      Toast.warn('No se pudo enviar a SharePoint', 'Error '+resp.status+'. Revisa el flujo en Power Automate.');
-      return { ok:false, status: resp.status };
+      let detail = '';
+      try{ detail = await resp.text(); }catch(e){}
+      console.error('Power Automate respondió con error', resp.status, detail);
+      console.error('Tamaño del payload enviado (KB):', Math.round(bodyStr.length/1024));
+      const shortDetail = detail ? (detail.length>180 ? detail.slice(0,180)+'…' : detail) : `Error ${resp.status}. Revisa el flujo en Power Automate.`;
+      Toast.warn('No se pudo enviar a SharePoint', shortDetail);
+      return { ok:false, status: resp.status, detail };
     }
     return { ok:true };
   }catch(err){
