@@ -2416,8 +2416,10 @@ async function exportPDF(a){
       for(const q of hallazgos){
         const r = a.respuestas[q.id]; const plan = r.plan||emptyPlan();
         const prog = PROGRAMAS.find(p=>p.id===q.programaId);
-        const questionLines = doc.splitTextToSize(forceWrapLongTokens(q.texto), textW);
+        doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
         const headTxt = doc.splitTextToSize(forceWrapLongTokens(prog?prog.nombre:q.programaId), textW);
+        doc.setFont('helvetica','bold'); doc.setFontSize(9.3);
+        const questionLines = doc.splitTextToSize(forceWrapLongTokens(q.texto), textW);
         const comentarioCalc = computeLabeledLines('Comentario', r.observacion, 8.6);
         const accionCalc = computeLabeledLines('Acción', plan.accion, 8.6);
         const comoCalc = computeLabeledLines('Cómo', plan.como, 8.6);
