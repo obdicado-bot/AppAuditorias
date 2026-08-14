@@ -708,6 +708,14 @@ textarea.form-control{resize:vertical;min-height:88px;}
                 </div>
               </div>
               <div class="form-field">
+                <label>Nombre de quien firma (responsable)</label>
+                <input class="form-control" id="f-firmanteResponsable" placeholder="Nombre de la persona que firma">
+              </div>
+              <div class="form-field" style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="chk-incluirFirmaResponsable" checked style="width:16px;height:16px;margin:0;">
+                <label for="chk-incluirFirmaResponsable" style="margin:0;">La persona sí puede firmar en este momento</label>
+              </div>
+              <div class="form-field" id="wrapSigResponsable">
                 <label>Firma del responsable — <span id="sigResponsableName">—</span></label>
                 <div class="sig-box" id="sigBoxResponsable" data-sig-target="responsable">
                   <div class="sig-empty"><i class="fa-solid fa-signature"></i>Toca para agregar firma</div>
@@ -1207,7 +1215,8 @@ function newAudit(){
     fechaFinalOriginal: null, // momento de la PRIMERA finalización; define el plazo de edición
     respuestas: {}, // { qid: {resultado, observacion, evidencias:[photoId...], plan:{...}} }
     correoAuditor:'',
-    firmaAuditor:null, firmaResponsable:null
+    firmaAuditor:null, firmaResponsable:null,
+    firmanteResponsable:'', incluirFirmaResponsable:true
   };
 }
 /* Plazo durante el cual una auditoría ya finalizada aún puede editarse. */
@@ -1508,6 +1517,8 @@ function startNewAuditFlow(){
   document.getElementById('f-fecha').value = todayISO();
   document.getElementById('f-responsable').value = '';
   document.getElementById('f-correo').value = '';
+  document.getElementById('f-firmanteResponsable').value = '';
+  document.getElementById('chk-incluirFirmaResponsable').checked = true;
   document.querySelectorAll('.field-error').forEach(el=>el.classList.remove('show'));
   document.querySelectorAll('.form-control').forEach(el=>el.classList.remove('invalid'));
 }
@@ -1527,6 +1538,8 @@ function editAudit(id){
   document.getElementById('f-fecha').value = a.fecha || todayISO();
   document.getElementById('f-responsable').value = a.responsable || '';
   document.getElementById('f-correo').value = a.correo || '';
+  document.getElementById('f-firmanteResponsable').value = a.firmanteResponsable || '';
+  document.getElementById('chk-incluirFirmaResponsable').checked = a.incluirFirmaResponsable !== false;
   setComboValue('f-ciudad', a.ciudad);
   setComboValue('f-agencia', a.agencia);
   document.querySelectorAll('.field-error').forEach(el=>el.classList.remove('show'));
@@ -1902,7 +1915,10 @@ function renderSummary(){
   document.getElementById('legNoCumple').textContent = s.noCumple;
   document.getElementById('legNoAplica').textContent = s.noAplica;
   document.getElementById('sigAuditorName').textContent = a.auditor || '—';
-  document.getElementById('sigResponsableName').textContent = a.responsable || '—';
+  document.getElementById('sigResponsableName').textContent = a.firmanteResponsable || '—';
+  document.getElementById('f-firmanteResponsable').value = a.firmanteResponsable || '';
+  document.getElementById('chk-incluirFirmaResponsable').checked = a.incluirFirmaResponsable !== false;
+  document.getElementById('wrapSigResponsable').style.display = (a.incluirFirmaResponsable !== false) ? '' : 'none';
 
   const circumference = 2*Math.PI*60;
   const setArc = (id,count,offsetCount)=>{
@@ -1975,7 +1991,7 @@ document.querySelectorAll('.sig-box').forEach(box=>{
 function openSigModal(target){
   AppState.sigTarget = target;
   const a = AppState.currentAudit;
-  document.getElementById('sigModalTitle').innerHTML = `<i class="fa-solid fa-signature"></i>&nbsp; Firma del ${target==='auditor'?'auditor':'responsable'} — ${target==='auditor'?(a.auditor||''):(a.responsable||'')}`;
+  document.getElementById('sigModalTitle').innerHTML = `<i class="fa-solid fa-signature"></i>&nbsp; Firma del ${target==='auditor'?'auditor':'responsable'} — ${target==='auditor'?(a.auditor||''):(a.firmanteResponsable||'')}`;
   document.getElementById('sigModal').classList.add('show');
   setTimeout(()=>{
     const canvas = document.getElementById('sigModalCanvas');
@@ -1994,6 +2010,21 @@ function openSigModal(target){
     }
   }, 60);
 }
+document.getElementById('f-firmanteResponsable').addEventListener('input',()=>{
+  const a = AppState.currentAudit; if(!a) return;
+  a.firmanteResponsable = document.getElementById('f-firmanteResponsable').value.trim();
+  document.getElementById('sigResponsableName').textContent = a.firmanteResponsable || '—';
+  Storage.upsert(a);
+});
+document.getElementById('chk-incluirFirmaResponsable').addEventListener('change',()=>{
+  const a = AppState.currentAudit; if(!a) return;
+  const incluir = document.getElementById('chk-incluirFirmaResponsable').checked;
+  a.incluirFirmaResponsable = incluir;
+  if(!incluir) a.firmaResponsable = null; // no se puede firmar: se descarta cualquier firma previa
+  document.getElementById('wrapSigResponsable').style.display = incluir ? '' : 'none';
+  Storage.upsert(a);
+  renderSummary();
+});
 document.getElementById('btn-sig-clear').addEventListener('click',()=>{ if(AppState.sigPad) AppState.sigPad.clear(); });
 document.getElementById('btn-sig-save').addEventListener('click',()=>{
   if(!AppState.sigPad || !AppState.sigPad.hasContent){ Toast.warn('Firma vacía','Dibuja la firma antes de guardar.'); return; }
@@ -2126,7 +2157,7 @@ async function sendToSharePoint(a){
 
 document.getElementById('btn-finalize').addEventListener('click',()=>{
   const a = AppState.currentAudit;
-  const missingSig = !a.firmaAuditor || !a.firmaResponsable;
+  const missingSig = !a.firmaAuditor || (a.incluirFirmaResponsable !== false && !a.firmaResponsable);
   const yaFinalizada = a.estado==='finalizada';
   const title = missingSig ? 'Firmas incompletas' : (yaFinalizada ? 'Guardar cambios' : 'Finalizar auditoría');
   const msg = missingSig
@@ -2495,8 +2526,9 @@ async function exportPDF(a){
     doc.setDrawColor(200,206,220); doc.line(40,firmaY+100,260,firmaY+100); doc.line(300,firmaY+100,520,firmaY+100);
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(20,30,50);
     doc.text('Firma del Auditor: '+a.auditor,40,firmaY+115);
-    doc.text('Firma del Responsable: '+a.responsable,300,firmaY+115);
-    if(a.correo){ doc.setFontSize(8.5); doc.setTextColor(110,120,140); doc.text('Correo del responsable: '+a.correo,300,firmaY+130); }
+    if(a.incluirFirmaResponsable !== false){
+      doc.text('Firma del Responsable: '+(a.firmanteResponsable||a.responsable||''),300,firmaY+115);
+    }
 
     const pageCount = doc.internal.getNumberOfPages();
     for(let i=1;i<=pageCount;i++){
