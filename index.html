@@ -233,6 +233,7 @@ a{color:inherit;}
 .w-step.active .txt b,.w-step.done .txt b{color:var(--navy-950);}
 
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.form-grid.form-grid-single-col{grid-template-columns:1fr;}
 .form-field{display:flex;flex-direction:column;gap:7px;}
 .form-field label{font-size:12.5px;font-weight:700;color:var(--slate-700);}
 .form-field label .req{color:var(--red-600);}
@@ -568,7 +569,7 @@ textarea.form-control{resize:vertical;min-height:88px;}
                 <span class="field-error" id="err-auditor">Ingresa el nombre del auditor.</span>
               </div>
               <div class="form-field">
-                <label>Correo del auditor (opcional)</label>
+                <label>Correo del auditor <span class="req">*</span></label>
                 <input class="form-control" type="email" id="f-correo-auditor" placeholder="auditor@cbc.co">
                 <span class="field-error" id="err-correo-auditor">Ingresa un correo válido del auditor.</span>
               </div>
@@ -601,8 +602,9 @@ textarea.form-control{resize:vertical;min-height:88px;}
                 <span class="field-error" id="err-responsable">Ingresa el nombre del responsable.</span>
               </div>
               <div class="form-field">
-                <label>Correo del responsable (opcional)</label>
+                <label>Correo del responsable <span class="req">*</span></label>
                 <input class="form-control" type="email" id="f-correo" placeholder="correo@cbc.co">
+                <span class="field-error" id="err-correo">Ingresa un correo válido del responsable.</span>
               </div>
             </div>
           </div>
@@ -700,7 +702,7 @@ textarea.form-control{resize:vertical;min-height:88px;}
 
           <div class="panel">
             <div class="panel-head"><h3>Firmas de conformidad</h3></div>
-            <div class="form-grid">
+            <div class="form-grid form-grid-single-col">
               <div class="form-field">
                 <label>Firma del auditor — <span id="sigAuditorName">—</span></label>
                 <div class="sig-box" id="sigBoxAuditor" data-sig-target="auditor">
@@ -711,12 +713,8 @@ textarea.form-control{resize:vertical;min-height:88px;}
                 <label>Nombre de quien firma (responsable)</label>
                 <input class="form-control" id="f-firmanteResponsable" placeholder="Nombre de la persona que firma">
               </div>
-              <div class="form-field" style="display:flex;align-items:center;gap:8px;">
-                <input type="checkbox" id="chk-incluirFirmaResponsable" checked style="width:16px;height:16px;margin:0;">
-                <label for="chk-incluirFirmaResponsable" style="margin:0;">La persona sí puede firmar en este momento</label>
-              </div>
               <div class="form-field" id="wrapSigResponsable">
-                <label>Firma del responsable — <span id="sigResponsableName">—</span></label>
+                <label>Firma del responsable — <span id="sigResponsableName">—</span> <span class="req">*</span></label>
                 <div class="sig-box" id="sigBoxResponsable" data-sig-target="responsable">
                   <div class="sig-empty"><i class="fa-solid fa-signature"></i>Toca para agregar firma</div>
                 </div>
@@ -1518,7 +1516,6 @@ function startNewAuditFlow(){
   document.getElementById('f-responsable').value = '';
   document.getElementById('f-correo').value = '';
   document.getElementById('f-firmanteResponsable').value = '';
-  document.getElementById('chk-incluirFirmaResponsable').checked = true;
   document.querySelectorAll('.field-error').forEach(el=>el.classList.remove('show'));
   document.querySelectorAll('.form-control').forEach(el=>el.classList.remove('invalid'));
 }
@@ -1539,7 +1536,6 @@ function editAudit(id){
   document.getElementById('f-responsable').value = a.responsable || '';
   document.getElementById('f-correo').value = a.correo || '';
   document.getElementById('f-firmanteResponsable').value = a.firmanteResponsable || '';
-  document.getElementById('chk-incluirFirmaResponsable').checked = a.incluirFirmaResponsable !== false;
   setComboValue('f-ciudad', a.ciudad);
   setComboValue('f-agencia', a.agencia);
   document.querySelectorAll('.field-error').forEach(el=>el.classList.remove('show'));
@@ -1554,31 +1550,25 @@ document.getElementById('btn-start-checklist').addEventListener('click',()=>{
   const agencia = document.getElementById('f-agencia').value.trim();
   const fecha = document.getElementById('f-fecha').value;
   const responsable = document.getElementById('f-responsable').value.trim();
+  const correoResponsable = document.getElementById('f-correo').value.trim();
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   let ok = true;
   const mark=(id,errId,cond)=>{ document.getElementById(id).classList.toggle('invalid',!cond); document.getElementById(errId).classList.toggle('show',!cond); if(!cond) ok=false; };
   mark('f-auditor','err-auditor',!!auditor);
+  mark('f-correo-auditor','err-correo-auditor', emailRe.test(correoAuditor));
   mark('f-ciudad','err-ciudad',!!ciudad);
   mark('f-agencia','err-agencia',!!agencia);
   mark('f-fecha','err-fecha',!!fecha);
   mark('f-responsable','err-responsable',!!responsable);
-  document.getElementById('f-correo-auditor').classList.remove('invalid');
-  document.getElementById('err-correo-auditor').classList.remove('show');
+  mark('f-correo','err-correo', emailRe.test(correoResponsable));
   if(!ok){ Toast.warn('Campos incompletos','Completa todos los campos obligatorios para continuar.'); return; }
 
-  const proceedStart = ()=>{
-    if(!AppState.currentAudit) AppState.currentAudit = newAudit();
-    Object.assign(AppState.currentAudit,{auditor,correoAuditor,ciudad,agencia,fecha,responsable,correo:document.getElementById('f-correo').value.trim()});
-    Storage.upsert(AppState.currentAudit);
-    Toast.success('Auditoría creada', `${AppState.currentAudit.agencia||''} · ${AppState.currentAudit.fecha||''}`);
-    setStep(1);
-    renderQuestions();
-  };
-
-  if(!correoAuditor){
-    Confirm.ask('Correo del auditor vacío', 'No ingresaste el correo del auditor. ¿Deseas continuar de todos modos?', proceedStart);
-    return;
-  }
-  proceedStart();
+  if(!AppState.currentAudit) AppState.currentAudit = newAudit();
+  Object.assign(AppState.currentAudit,{auditor,correoAuditor,ciudad,agencia,fecha,responsable,correo:correoResponsable});
+  Storage.upsert(AppState.currentAudit);
+  Toast.success('Auditoría creada', `${AppState.currentAudit.agencia||''} · ${AppState.currentAudit.fecha||''}`);
+  setStep(1);
+  renderQuestions();
 });
 
 document.getElementById('btn-back-info').addEventListener('click',()=>setStep(0));
@@ -1761,7 +1751,7 @@ function accionCardHTML(q){
   return `<div class="q-card answered-nocumple" data-acc-qid="${q.id}">
     <span class="q-badge"><i class="fa-solid ${prog.icono}"></i>&nbsp; ${prog.nombre}</span>
     <div class="q-text">${q.texto}</div>
-    ${r.observacion?`<div style="font-size:12.5px;color:var(--slate-600);margin-top:8px;"><b>Observación:</b> ${r.observacion}</div>`:''}
+    ${r.observacion?`<div style="font-size:12.5px;color:var(--slate-600);margin-top:8px;overflow-wrap:anywhere;word-break:break-word;"><b>Observación:</b> ${r.observacion}</div>`:''}
     <div class="plan-subgrid">
       <div class="form-field">
         <label>Acción correctiva <span class="req">*</span></label>
@@ -1917,8 +1907,6 @@ function renderSummary(){
   document.getElementById('sigAuditorName').textContent = a.auditor || '—';
   document.getElementById('sigResponsableName').textContent = a.firmanteResponsable || '—';
   document.getElementById('f-firmanteResponsable').value = a.firmanteResponsable || '';
-  document.getElementById('chk-incluirFirmaResponsable').checked = a.incluirFirmaResponsable !== false;
-  document.getElementById('wrapSigResponsable').style.display = (a.incluirFirmaResponsable !== false) ? '' : 'none';
 
   const circumference = 2*Math.PI*60;
   const setArc = (id,count,offsetCount)=>{
@@ -2015,15 +2003,6 @@ document.getElementById('f-firmanteResponsable').addEventListener('input',()=>{
   a.firmanteResponsable = document.getElementById('f-firmanteResponsable').value.trim();
   document.getElementById('sigResponsableName').textContent = a.firmanteResponsable || '—';
   Storage.upsert(a);
-});
-document.getElementById('chk-incluirFirmaResponsable').addEventListener('change',()=>{
-  const a = AppState.currentAudit; if(!a) return;
-  const incluir = document.getElementById('chk-incluirFirmaResponsable').checked;
-  a.incluirFirmaResponsable = incluir;
-  if(!incluir) a.firmaResponsable = null; // no se puede firmar: se descarta cualquier firma previa
-  document.getElementById('wrapSigResponsable').style.display = incluir ? '' : 'none';
-  Storage.upsert(a);
-  renderSummary();
 });
 document.getElementById('btn-sig-clear').addEventListener('click',()=>{ if(AppState.sigPad) AppState.sigPad.clear(); });
 document.getElementById('btn-sig-save').addEventListener('click',()=>{
@@ -2157,11 +2136,15 @@ async function sendToSharePoint(a){
 
 document.getElementById('btn-finalize').addEventListener('click',()=>{
   const a = AppState.currentAudit;
-  const missingSig = !a.firmaAuditor || (a.incluirFirmaResponsable !== false && !a.firmaResponsable);
+  if(!a.firmaResponsable){
+    Toast.warn('Falta la firma del responsable', 'Agrega la firma del responsable antes de finalizar la auditoría.');
+    return;
+  }
+  const missingSig = !a.firmaAuditor;
   const yaFinalizada = a.estado==='finalizada';
-  const title = missingSig ? 'Firmas incompletas' : (yaFinalizada ? 'Guardar cambios' : 'Finalizar auditoría');
+  const title = missingSig ? 'Firma del auditor pendiente' : (yaFinalizada ? 'Guardar cambios' : 'Finalizar auditoría');
   const msg = missingSig
-    ? 'Falta la firma del auditor y/o del responsable. ¿Deseas continuar sin firmar de todos modos?'
+    ? 'Falta la firma del auditor. ¿Deseas continuar sin firmar de todos modos?'
     : (yaFinalizada
       ? 'Estás actualizando una auditoría que ya había sido finalizada. Se guardarán los cambios. ¿Deseas continuar?'
       : 'Una vez finalizada, la auditoría quedará como cerrada. ¿Deseas continuar?');
@@ -2185,10 +2168,26 @@ document.getElementById('btn-finalize').addEventListener('click',()=>{
 ============================================================================= */
 function renderReportBody(a){
   const s = computeStats(a);
+  const circumference = 2*Math.PI*60;
+  const arcOf = (count, offsetCount) => {
+    const frac = s.respondidas>0 ? count/s.respondidas : 0;
+    const len = frac*circumference;
+    const offset = s.respondidas>0 ? (offsetCount/s.respondidas)*circumference : 0;
+    return { len, offset };
+  };
+  const arcCumple = arcOf(s.cumple, 0);
+  const arcNoCumple = arcOf(s.noCumple, s.cumple);
+  const arcNoAplica = arcOf(s.noAplica, s.cumple+s.noCumple);
   const hallazgos = PREGUNTAS.filter(q=>{ const r=a.respuestas[q.id]; return r && r.resultado==='No cumple'; });
   document.getElementById('reporteBody').innerHTML = `
     <div class="summary-hero">
       <div class="summary-donut">
+        <svg width="150" height="150" viewBox="0 0 150 150" style="transform:rotate(-90deg);">
+          <circle cx="75" cy="75" r="60" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="15"/>
+          <circle cx="75" cy="75" r="60" fill="none" stroke="#15935a" stroke-width="15" stroke-dasharray="${arcCumple.len} ${circumference-arcCumple.len}" stroke-dashoffset="${-arcCumple.offset}"/>
+          <circle cx="75" cy="75" r="60" fill="none" stroke="#d64532" stroke-width="15" stroke-dasharray="${arcNoCumple.len} ${circumference-arcNoCumple.len}" stroke-dashoffset="${-arcNoCumple.offset}"/>
+          <circle cx="75" cy="75" r="60" fill="none" stroke="#94a3bd" stroke-width="15" stroke-dasharray="${arcNoAplica.len} ${circumference-arcNoAplica.len}" stroke-dashoffset="${-arcNoAplica.offset}"/>
+        </svg>
         <div class="center"><b>${s.pct}%</b><span>Cumplimiento</span></div>
       </div>
       <div class="summary-meta">
@@ -2257,44 +2256,45 @@ function renderChartToImage(config, widthPx, heightPx){
   });
 }
 
-/* Dibuja el bloque "Cumplimiento por programa" como grid de 3 columnas,
-   con el nombre completo del programa, % de cumplimiento, barra y puntaje.
-   Devuelve el Y final (después del grid) para continuar el layout del PDF. */
-function drawProgramGrid(doc, a, startY, pageW, navy){
-  const cols = 3, gap = 12, marginX = 40;
-  const gridW = pageW - marginX*2;
-  const colW = (gridW - gap*(cols-1))/cols;
-  const cardH = 74;
-  const pageBottom = 780;
-  let y = startY;
-  PROGRAMAS.forEach((p,i)=>{
-    const col = i % cols;
-    if(col===0 && i!==0) y += cardH + gap;
-    if(y + cardH > pageBottom){ doc.addPage(); y = 44; }
-    const cx = marginX + col*(colW+gap);
-    const cy = y;
-    const ps = computeProgramStats(a,p.id);
-    const color = ps.pct>=90 ? [21,147,90] : ps.pct>=80 ? [199,126,0] : [214,69,50];
-
-    doc.setFillColor(245,247,251); doc.roundedRect(cx,cy,colW,cardH,6,6,'F');
-    doc.setDrawColor(225,230,240); doc.setLineWidth(0.7); doc.roundedRect(cx,cy,colW,cardH,6,6,'S');
-
-    doc.setFont('helvetica','bold'); doc.setFontSize(8.2); doc.setTextColor(20,30,50);
-    const nameLines = doc.splitTextToSize(p.nombre, colW-44);
-    doc.text(nameLines.slice(0,2), cx+10, cy+14);
-
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(color[0],color[1],color[2]);
-    doc.text(ps.pct+'%', cx+colW-10, cy+15, {align:'right'});
-
-    const barY = cy+42, barW = colW-20, barH=6;
-    doc.setFillColor(228,232,240); doc.roundedRect(cx+10, barY, barW, barH, 3,3,'F');
-    const fillW = Math.max(4, barW*Math.min(100,ps.pct)/100);
-    doc.setFillColor(color[0],color[1],color[2]); doc.roundedRect(cx+10, barY, fillW, barH, 3,3,'F');
-
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(110,120,140);
-    doc.text(`${ps.ptjObt}/${ps.ptjPos||0} pts`, cx+10, barY+18);
+/* Dibuja "Cumplimiento por programa" como tabla (mismo estilo que el checklist):
+   Programa | Puntaje (ej. 6/9) | Resultado % con el color correspondiente.
+   Mucho más compacta que la cuadrícula de tarjetas — cabe completa en la
+   primera hoja junto con la dona. Devuelve el Y final para seguir el layout. */
+function drawProgramTable(doc, a, startY, pageW, navy){
+  doc.autoTable({
+    startY,
+    theme:'grid',
+    styles:{fontSize:8,cellPadding:4},
+    headStyles:{fillColor:navy,textColor:255},
+    columnStyles:{
+      0:{cellWidth:pageW-80-140},
+      1:{cellWidth:70,halign:'center'},
+      2:{cellWidth:70,halign:'center',cellPadding:{top:4,right:4,bottom:7,left:4}}
+    },
+    head:[['Programa','Puntaje','Cumplimiento']],
+    body:PROGRAMAS.map(p=>{
+      const ps = computeProgramStats(a,p.id);
+      return [p.nombre, `${ps.ptjObt}/${ps.ptjPos||0}`, ps.pct+'%'];
+    }),
+    didParseCell:(d)=>{
+      if(d.section==='body' && d.column.index===2){
+        const pct = parseInt(d.cell.raw,10);
+        d.cell.styles.fontStyle = 'bold';
+        d.cell.styles.textColor = pct>=90 ? [21,147,90] : pct>=80 ? [199,126,0] : [214,69,50];
+      }
+    },
+    didDrawCell:(d)=>{
+      if(d.section==='body' && d.column.index===2){
+        const pct = Math.max(0, Math.min(100, parseInt(d.cell.raw,10)||0));
+        const color = pct>=90 ? [21,147,90] : pct>=80 ? [199,126,0] : [214,69,50];
+        const barX = d.cell.x + 8, barW = d.cell.width - 16, barH = 3;
+        const barY = d.cell.y + d.cell.height - 5;
+        d.doc.setFillColor(228,232,240); d.doc.roundedRect(barX, barY, barW, barH, 1.5, 1.5, 'F');
+        d.doc.setFillColor(color[0],color[1],color[2]); d.doc.roundedRect(barX, barY, Math.max(2, barW*pct/100), barH, 1.5, 1.5, 'F');
+      }
+    }
   });
-  return y + cardH + gap;
+  return doc.lastAutoTable.finalY;
 }
 
 async function exportPDF(a){
@@ -2339,7 +2339,7 @@ async function exportPDF(a){
       head:[['Ciudad','Agencia','Auditor','Responsable','Fecha']],
       body:[[a.ciudad, a.agencia, a.auditor, a.responsable, a.fecha]]
     });
-    y = doc.lastAutoTable.finalY + 26;
+    y = doc.lastAutoTable.finalY + 36;
 
     // ---------- Panel de resultados: dona de cumplimiento + cumplimiento por programa ----------
     y = ensureSpace(y, 235);
@@ -2361,24 +2361,43 @@ async function exportPDF(a){
         ctx.restore();
       }
     };
+    /* Sin leyenda dentro de la imagen: a 116px se vuelve ilegible. La leyenda
+       real (más grande) se dibuja aparte, al lado del donut, con doc.rect/doc.text. */
     const distImg = await renderChartToImage({
       type:'doughnut',
       data:{ labels:['Cumple','No cumple','No aplica'], datasets:[{ data:[s.cumple,s.noCumple,s.noAplica], backgroundColor:['#15935a','#d64532','#94a3bd'], borderWidth:0 }] },
-      options:{ plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:15}}}}, cutout:'68%' },
+      options:{ plugins:{legend:{display:false}}, cutout:'68%' },
       plugins:[centerTextPlugin]
     }, 480, 480);
     const donutTop = y;
-    doc.addImage(distImg,'PNG',40,donutTop,190,190);
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,30,50);
-    doc.text(`Cumplimiento global: ${s.pct}%`,250,donutTop+32);
+    doc.addImage(distImg,'PNG',40,donutTop,116,116);
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setTextColor(20,30,50);
+    doc.text(`Cumplimiento global: ${s.pct}%`,176,donutTop+16);
     doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90,100,120);
-    doc.text(`${s.respondidas}/${s.total} preguntas respondidas`,250,donutTop+50);
-    doc.text(`${s.cumple} Cumple  ·  ${s.noCumple} No cumple  ·  ${s.noAplica} No aplica`,250,donutTop+66);
-    y = donutTop + 190 + 26;
+    doc.text(`${s.respondidas}/${s.total} preguntas respondidas`,176,donutTop+32);
+
+    // Leyenda grande (swatch de color + etiqueta + cantidad), una fila por estado.
+    const legendRows = [
+      {label:'Cumple', count:s.cumple, color:[21,147,90]},
+      {label:'No cumple', count:s.noCumple, color:[214,69,50]},
+      {label:'No aplica', count:s.noAplica, color:[148,163,189]}
+    ];
+    let legendY = donutTop + 52;
+    legendRows.forEach(row=>{
+      doc.setFillColor(row.color[0],row.color[1],row.color[2]);
+      doc.roundedRect(176, legendY-9, 12, 12, 2, 2, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(20,30,50);
+      doc.text(`${row.label}`, 194, legendY);
+      doc.setFont('helvetica','normal'); doc.setTextColor(90,100,120);
+      doc.text(`${row.count}`, 300, legendY);
+      legendY += 18;
+    });
+    y = donutTop + 116 + 14;
 
     y = ensureSpace(y, 40);
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,30,50); doc.text('Cumplimiento por programa',40,y); y+=14;
-    y = drawProgramGrid(doc, a, y, pageW, navy);
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,30,50); doc.text('Cumplimiento por programa',40,y); y+=8;
+    y = drawProgramTable(doc, a, y, pageW, navy) + 22;
 
     // ---------- Checklist de auditoría ----------
     y = ensureSpace(y, 70);
