@@ -359,6 +359,8 @@ textarea.form-control{resize:vertical;min-height:88px;}
 .mh h3{font-size:16px;margin:0;font-weight:800;color:var(--navy-950);}
 .mb{padding:22px 24px;}
 .mf{padding:16px 24px;border-top:1px solid var(--slate-100);display:flex;justify-content:flex-end;gap:10px;}
+#sigModal .mf{flex-wrap:wrap;justify-content:center;padding:14px 16px;gap:8px;}
+#sigModal .mf .btn{flex:1 1 auto;min-width:110px;padding:9px 10px;font-size:12.5px;justify-content:center;}
 .help-item{display:flex;gap:14px;margin-bottom:18px;}
 .help-item:last-child{margin-bottom:0;}
 .hi-ico{width:38px;height:38px;border-radius:10px;background:var(--navy-100);color:var(--navy-800);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -710,7 +712,7 @@ textarea.form-control{resize:vertical;min-height:88px;}
                 </div>
               </div>
               <div class="form-field">
-                <label>Nombre de quien firma (responsable)</label>
+                <label>Nombre de quien firma (responsable) <span class="req">*</span></label>
                 <input class="form-control" id="f-firmanteResponsable" placeholder="Nombre de la persona que firma">
               </div>
               <div class="form-field" id="wrapSigResponsable">
@@ -1697,7 +1699,7 @@ function questionCardHTML(q){
       <label style="font-size:12.5px;font-weight:700;color:var(--slate-700);display:block;margin-top:12px;">Evidencia fotográfica (mínimo 1, máximo ${MAX_EVIDENCIAS}) <span class="req">*</span></label>
       <div class="evidence-zone" data-ezone="${q.id}">
         ${(r.evidencias||[]).map(id=>evidenceThumbPending(id)).join('')}
-        ${(r.evidencias||[]).length < MAX_EVIDENCIAS ? `<label class="evidence-add"><i class="fa-solid fa-camera"></i>Agregar<input type="file" accept="image/*" capture="environment" multiple style="display:none;" data-file="${q.id}"></label>` : ''}
+        ${(r.evidencias||[]).length < MAX_EVIDENCIAS ? `<label class="evidence-add"><i class="fa-solid fa-camera"></i>Agregar<input type="file" accept="image/*" multiple style="display:none;" data-file="${q.id}"></label>` : ''}
       </div>
       <div class="evidence-hint ${(!r.evidencias || r.evidencias.length===0)?'warn':''}" data-evhint="${q.id}">${(!r.evidencias || r.evidencias.length===0)?'Se requiere al menos una fotografía para este hallazgo.':(r.evidencias.length)+` de ${MAX_EVIDENCIAS} fotografía(s) adjunta(s).`}</div>
     </div>
@@ -2136,6 +2138,10 @@ async function sendToSharePoint(a){
 
 document.getElementById('btn-finalize').addEventListener('click',()=>{
   const a = AppState.currentAudit;
+  if(!(a.firmanteResponsable||'').trim()){
+    Toast.warn('Falta el nombre de quien firma', 'Escribe el nombre de la persona que firma antes de finalizar la auditoría.');
+    return;
+  }
   if(!a.firmaResponsable){
     Toast.warn('Falta la firma del responsable', 'Agrega la firma del responsable antes de finalizar la auditoría.');
     return;
