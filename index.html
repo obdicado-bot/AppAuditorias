@@ -572,8 +572,8 @@ textarea.form-control{resize:vertical;min-height:88px;}
               </div>
               <div class="form-field">
                 <label>Correo del auditor <span class="req">*</span></label>
-                <input class="form-control" type="email" id="f-correo-auditor" placeholder="auditor@cbc.co">
-                <span class="field-error" id="err-correo-auditor">Ingresa un correo válido del auditor.</span>
+                <input class="form-control" type="text" inputmode="email" id="f-correo-auditor" placeholder="auditor@ejemplo.com">
+                <span class="field-error" id="err-correo-auditor">El correo del auditor debe contener @.</span>
               </div>
               <div class="form-field">
                 <label>Fecha de evaluación <span class="req">*</span></label>
@@ -605,8 +605,8 @@ textarea.form-control{resize:vertical;min-height:88px;}
               </div>
               <div class="form-field">
                 <label>Correo del responsable <span class="req">*</span></label>
-                <input class="form-control" type="email" id="f-correo" placeholder="correo@cbc.co">
-                <span class="field-error" id="err-correo">Ingresa un correo válido del responsable.</span>
+                <input class="form-control" type="text" inputmode="email" id="f-correo" placeholder="correo@ejemplo.com">
+                <span class="field-error" id="err-correo">El correo del responsable debe contener @.</span>
               </div>
             </div>
           </div>
@@ -1553,16 +1553,15 @@ document.getElementById('btn-start-checklist').addEventListener('click',()=>{
   const fecha = document.getElementById('f-fecha').value;
   const responsable = document.getElementById('f-responsable').value.trim();
   const correoResponsable = document.getElementById('f-correo').value.trim();
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   let ok = true;
   const mark=(id,errId,cond)=>{ document.getElementById(id).classList.toggle('invalid',!cond); document.getElementById(errId).classList.toggle('show',!cond); if(!cond) ok=false; };
   mark('f-auditor','err-auditor',!!auditor);
-  mark('f-correo-auditor','err-correo-auditor', emailRe.test(correoAuditor));
+  mark('f-correo-auditor','err-correo-auditor', correoAuditor.includes('@'));
   mark('f-ciudad','err-ciudad',!!ciudad);
   mark('f-agencia','err-agencia',!!agencia);
   mark('f-fecha','err-fecha',!!fecha);
   mark('f-responsable','err-responsable',!!responsable);
-  mark('f-correo','err-correo', emailRe.test(correoResponsable));
+  mark('f-correo','err-correo', correoResponsable.includes('@'));
   if(!ok){ Toast.warn('Campos incompletos','Completa todos los campos obligatorios para continuar.'); return; }
 
   if(!AppState.currentAudit) AppState.currentAudit = newAudit();
@@ -1699,7 +1698,7 @@ function questionCardHTML(q){
       <label style="font-size:12.5px;font-weight:700;color:var(--slate-700);display:block;margin-top:12px;">Evidencia fotográfica (mínimo 1, máximo ${MAX_EVIDENCIAS}) <span class="req">*</span></label>
       <div class="evidence-zone" data-ezone="${q.id}">
         ${(r.evidencias||[]).map(id=>evidenceThumbPending(id)).join('')}
-        ${(r.evidencias||[]).length < MAX_EVIDENCIAS ? `<label class="evidence-add"><i class="fa-solid fa-camera"></i>Agregar<input type="file" accept="image/*" multiple style="display:none;" data-file="${q.id}"></label>` : ''}
+        ${(r.evidencias||[]).length < MAX_EVIDENCIAS ? `<label class="evidence-add" style="position:relative;"><i class="fa-solid fa-camera"></i>Tomar foto<input type="file" accept="image/*" capture="environment" aria-label="Tomar foto" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;" data-file="${q.id}"></label><label class="evidence-add" style="position:relative;"><i class="fa-solid fa-images"></i>Galería<input type="file" accept="image/*" multiple aria-label="Seleccionar fotos de la galería" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;" data-file="${q.id}"></label>` : ''}
       </div>
       <div class="evidence-hint ${(!r.evidencias || r.evidencias.length===0)?'warn':''}" data-evhint="${q.id}">${(!r.evidencias || r.evidencias.length===0)?'Se requiere al menos una fotografía para este hallazgo.':(r.evidencias.length)+` de ${MAX_EVIDENCIAS} fotografía(s) adjunta(s).`}</div>
     </div>
