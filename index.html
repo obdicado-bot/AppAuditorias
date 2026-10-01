@@ -600,12 +600,20 @@ textarea.form-control{resize:vertical;min-height:88px;}
               </div>
               <div class="form-field">
                 <label>Responsable de agencia (JOS) <span class="req">*</span></label>
-                <input class="form-control" id="f-responsable" placeholder="Nombre del responsable de la agencia">
+                <div class="combo">
+                  <input class="form-control combo-input" id="f-responsable" placeholder="Selecciona un JOS o escribe otro..." autocomplete="off" aria-label="Responsable de agencia (JOS)" aria-expanded="false" aria-controls="list-jos">
+                  <i class="fa-solid fa-chevron-down combo-caret"></i>
+                  <div class="combo-list" id="list-jos"></div>
+                </div>
                 <span class="field-error" id="err-responsable">Ingresa el nombre del responsable.</span>
               </div>
               <div class="form-field">
                 <label>Correo del responsable <span class="req">*</span></label>
-                <input class="form-control" type="text" inputmode="email" id="f-correo" placeholder="correo@ejemplo.com">
+                <div class="combo">
+                  <input class="form-control combo-input" type="text" inputmode="email" id="f-correo" placeholder="Selecciona un correo o escribe otro..." autocomplete="off" aria-label="Correo del responsable" aria-expanded="false" aria-controls="list-correo-jos">
+                  <i class="fa-solid fa-chevron-down combo-caret"></i>
+                  <div class="combo-list" id="list-correo-jos"></div>
+                </div>
                 <span class="field-error" id="err-correo">El correo del responsable debe contener @.</span>
               </div>
             </div>
@@ -2638,10 +2646,81 @@ async function exportExcel(a){
 /* =============================================================================
    20) BOOT
 ============================================================================= */
+function initJOSCombos(){
+  const contactos = [
+    {nombre:'Jorge Armijos', correo:'jlarmijos@cbc.co'},
+    {nombre:'Estiven de la Torre', correo:'sdelatorre@cbc.co'},
+    {nombre:'Jorge Mora', correo:'jhmora@cbc.co'},
+    {nombre:'Paolo Torres', correo:'ptorres@cbc.co'}
+  ];
+  const nombre = document.getElementById('f-responsable');
+  const correo = document.getElementById('f-correo');
+  function configurar(input, listId, campo){
+    if(input.dataset.josInit) return;
+    input.dataset.josInit = '1';
+    const list = document.getElementById(listId);
+    const close = ()=>{ list.classList.remove('show'); input.setAttribute('aria-expanded','false'); };
+    const select = contacto=>{
+      nombre.value = contacto.nombre;
+      correo.value = contacto.correo;
+      close();
+      input.focus();
+      close();
+    };
+    function paint(filter=''){
+      list.replaceChildren();
+      const add = (text, action, extra='')=>{
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'combo-opt '+extra;
+        button.style.cssText = 'display:block;width:100%;text-align:left;border:0;background:transparent;font-family:inherit;';
+        button.textContent = text;
+        button.addEventListener('click', action);
+        list.appendChild(button);
+      };
+      contactos.filter(c=>c[campo].toLowerCase().includes(filter.trim().toLowerCase())).forEach(c=>{
+        add(c[campo], ()=>select(c));
+      });
+      add(campo==='nombre'?'Otro / Agregar responsable':'Otro / Agregar correo', ()=>{
+        input.value = '';
+        if(campo==='nombre') correo.value = '';
+        input.focus();
+        close();
+      }, 'combo-add');
+      list.classList.add('show');
+      input.setAttribute('aria-expanded','true');
+    }
+    input.addEventListener('focus', ()=>paint());
+    input.addEventListener('click', ()=>paint());
+    input.addEventListener('input', ()=>{
+      if(campo==='nombre'){
+        const match = contactos.find(c=>c.nombre.toLowerCase()===input.value.trim().toLowerCase());
+        if(match) correo.value = match.correo;
+        else if(contactos.some(c=>c.correo===correo.value)) correo.value = '';
+      }
+      paint(input.value);
+    });
+    input.parentElement.addEventListener('focusout', e=>{
+      if(!input.parentElement.contains(e.relatedTarget)) close();
+    });
+    input.parentElement.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){ input.focus(); close(); }
+      if(e.key==='ArrowDown' && e.target===input){
+        e.preventDefault();
+        if(!list.classList.contains('show')) paint();
+        list.querySelector('button')?.focus();
+      }
+    });
+  }
+  configurar(nombre, 'list-jos', 'nombre');
+  configurar(correo, 'list-correo-jos', 'correo');
+}
+
 function boot(){
   document.getElementById('user-name-display').textContent = AppState.userName || 'Auditor de Calidad';
   initCombo('f-ciudad','list-ciudad', CIUDADES, 'ciudad');
   initCombo('f-agencia','list-agencia', AGENCIAS, 'agencia');
+  initJOSCombos();
   startNewAuditFlow();
   renderSidebarCounts();
   setTimeout(()=>document.getElementById('boot-splash').classList.add('hide'), 700);
